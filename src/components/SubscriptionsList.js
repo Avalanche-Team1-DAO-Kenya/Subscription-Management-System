@@ -62,7 +62,10 @@ function SubscriptionsList({ selectedService }) {
   const handleDelete = async (subscriptionId) => {
     const subscription = subscriptions.find((sub) => sub.id === subscriptionId);
 
-    if (subscription.status === "active") {
+    if (
+      subscription.status === "active" &&
+      !isSubscriptionExpired(subscription.endTime)
+    ) {
       addNotification(
         "Cannot delete an active subscription. Please cancel it first."
       );
@@ -344,7 +347,7 @@ function SubscriptionsList({ selectedService }) {
                   <h4>{sub.serviceName}</h4>
                   <span className="plan-badge">{sub.planName}</span>
                 </div>
-                {sub.status === "inactive" && (
+                {(sub.status === "inactive" || isSubscriptionExpired(sub.endTime)) && (
                   <button
                     onClick={() => handleDelete(sub.id)}
                     className="delete-button"
