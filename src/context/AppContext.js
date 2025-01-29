@@ -1,17 +1,17 @@
 // frontend/src/context/AppContext.js
-import React, { createContext, useState, useEffect } from 'react';
-import Web3 from 'web3';
-import SubscriptionManagerABI from '../SubscriptionManager.json';
+import React, { createContext, useState, useEffect } from "react";
+import Web3 from "web3";
+import SubscriptionManagerABI from "../SubscriptionManager.json";
 
 const AppContext = createContext();
 
-const AVAX_CHAIN_ID = 'a86a';
+const AVAX_CHAIN_ID = "a86a";
 const CONTRACT_ADDRESS = process.env.REACT_APP_CONTRACT_ADDRESS;
 
 // Validate contract address is available
 if (!CONTRACT_ADDRESS) {
   console.error(
-    'Contract address not found. Make sure CONTRACT_ADDRESS is set in your .env file.'
+    "Contract address not found. Make sure CONTRACT_ADDRESS is set in your .env file."
   );
 }
 
@@ -40,12 +40,15 @@ export const AppProvider = ({ children }) => {
     try {
       const chainId = await web3.eth.getChainId();
       const networkId = await web3.eth.net.getId();
-      console.log('Connected to Chain ID:', chainId);
-      console.log('Network ID:', networkId);
+      console.log("Connected to Chain ID:", chainId);
+      console.log("Network ID:", networkId);
+
+      // Convert BigInt to Number for comparison
+      const chainIdNumber = Number(chainId);
 
       // Fuji Testnet Chain ID is 43113
-      if (chainId !== 43113) {
-        addNotification('Please connect to Fuji C-Chain (Chain ID: 43113)');
+      if (chainIdNumber !== 43113) {
+        addNotification("Please connect to Fuji C-Chain (Chain ID: 43113)");
         setNetworkVerified(false);
         return false;
       }
@@ -53,7 +56,7 @@ export const AppProvider = ({ children }) => {
       setNetworkVerified(true);
       return true;
     } catch (error) {
-      console.error('Network verification failed:', error);
+      console.error("Network verification failed:", error);
       setNetworkVerified(false);
       return false;
     }
@@ -76,8 +79,8 @@ export const AppProvider = ({ children }) => {
           // Verify network after initializing web3
           await verifyNetwork();
         } catch (error) {
-          console.error('Error initializing Web3:', error);
-          addNotification('Error connecting to blockchain');
+          console.error("Error initializing Web3:", error);
+          addNotification("Error connecting to blockchain");
         }
       }
     };
@@ -90,18 +93,18 @@ export const AppProvider = ({ children }) => {
       if (web3 && contract) {
         try {
           const code = await web3.eth.getCode(CONTRACT_ADDRESS);
-          if (code === '0x' || code === '0x0') {
-            console.error('No contract found at address:', CONTRACT_ADDRESS);
-            addNotification('Contract not found at specified address');
+          if (code === "0x" || code === "0x0") {
+            console.error("No contract found at address:", CONTRACT_ADDRESS);
+            addNotification("Contract not found at specified address");
           } else {
-            console.log('Contract verified at:', CONTRACT_ADDRESS);
+            console.log("Contract verified at:", CONTRACT_ADDRESS);
             const count = await contract.methods.subscriptionCount().call();
-            console.log('Contract is responsive. Subscription count:', count);
+            console.log("Contract is responsive. Subscription count:", count);
           }
         } catch (error) {
-          console.error('Contract verification failed:', error);
+          console.error("Contract verification failed:", error);
           addNotification(
-            'Error verifying contract. Please check network and address'
+            "Error verifying contract. Please check network and address"
           );
         }
       }
