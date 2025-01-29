@@ -1,22 +1,39 @@
-import { useEffect, useContext } from 'react';
-import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import AppContext from '../context/AppContext';
-import { parseEther, formatEther } from 'ethers';
+import { useEffect, useContext } from "react";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc,
+} from "firebase/firestore";
+import { db } from "../firebase/config";
+import AppContext from "../context/AppContext";
+import { ethers } from "ethers";
 
 function SubscriptionMonitor() {
   const { account, contract, addNotification, web3 } = useContext(AppContext);
 
   const checkAndProcessRenewals = async () => {
-    if (!account || !contract || !web3) return;
+    if (!account || !contract || !web3) {
+      console.log("Missing required context:", { account, contract, web3 });
+      return;
+    }
+
+    console.log("Contract state:", contract);
+    if (contract && contract.subscribe) {
+      console.log("Subscribe method exists on contract.");
+    } else {
+      console.error("Subscribe method is missing on contract.");
+    }
 
     try {
       const q = query(
-        collection(db, 'userSubscriptions'),
-        where('userId', '==', account.toLowerCase()),
-        where('autoRenew', '==', true),
-        where('status', '==', 'active'),
-        where('isCancelled', '==', false)
+        collection(db, "userSubscriptions"),
+        where("userId", "==", account.toLowerCase()),
+        where("autoRenew", "==", true),
+        where("status", "==", "active"),
+        where("isCancelled", "==", false)
       );
 
       const querySnapshot = await getDocs(q);
@@ -24,90 +41,76 @@ function SubscriptionMonitor() {
 
       for (const doc of querySnapshot.docs) {
         const subscription = doc.data();
-        
+
         // Check if subscription is near expiration (within 30 seconds)
         if (subscription.endTime - now <= 30 && subscription.endTime > now) {
-          let totalRequired;
           try {
-            // Check wallet balance first
-            const balance = await web3.eth.getBalance(account);
-            const requiredAmount = parseEther(subscription.price.toString());
-            const gasEstimate = await contract.subscribe.estimateGas(
-              subscription.duration,
-              { 
-                value: requiredAmount,
-                from: account
-              }
-            );
-            const gasPrice = await web3.eth.getGasPrice();
-            totalRequired = requiredAmount + (gasEstimate * gasPrice);
-            
-            console.log('Balance check:', {
-              balance: formatEther(balance),
-              required: formatEther(requiredAmount),
-              gasEstimate: gasEstimate.toString(),
-              gasPrice: formatEther(gasPrice),
-              totalRequired: formatEther(totalRequired)
-            });
-            
-            if (balance < totalRequired) {
-              throw new Error('Insufficient balance for renewal');
-            }
+            console.log("Processing renewal for subscription:", subscription);
 
-            // Create the transaction
-            const tx = await contract.subscribe(
-              subscription.duration,
-              { 
-                value: requiredAmount,
+            // Convert price to wei
+            const priceInWei = ethers.parseEther(subscription.price.toString());
+
+            // Estimate gas first
+            const gasEstimate = await contract.processPayment.estimateGas(
+              subscription.id,
+              {
                 from: account,
-                gasLimit: Math.ceil(gasEstimate * 1.2) // Add 20% buffer
+                value: priceInWei.toString(),
               }
             );
 
-            await tx.wait();
+            // Create the transaction with estimated gas
+            const tx = await contract.processPayment(subscription.id, {
+              from: account,
+              value: priceInWei.toString(),
+              gasLimit: Math.ceil(gasEstimate * 1.2), // Add 20% buffer for safety
+            });
+
+            console.log("Transaction sent:", tx);
 
             // Update subscription in Firestore after successful payment
-            const newEndTime = now + subscription.duration;
+            const newEndTime = now + Number(subscription.duration);
             await updateDoc(doc.ref, {
               startTime: now,
               endTime: newEndTime,
               updatedAt: new Date().toISOString(),
               lastRenewalTime: now,
               transactionHash: tx.hash,
-              status: 'active'
+              status: "active",
             });
 
-            addNotification('Subscription auto-renewed successfully!');
+            addNotification("Subscription auto-renewed successfully!");
           } catch (error) {
-            console.error('Auto-renewal failed:', error);
-            
-            let errorMessage = 'Auto-renewal failed. ';
-            if (error.message.includes('Insufficient balance')) {
-              errorMessage += `Insufficient wallet balance for renewal. Required: ${formatEther(totalRequired)} ETH`;
-            } else if (error.code === 4001) {
-              errorMessage += 'Transaction was rejected.';
+            console.error("Auto-renewal failed:", error);
+
+            let errorMessage = "Auto-renewal failed. ";
+            if (error.code === 4001) {
+              errorMessage += "Transaction was rejected.";
+            } else if (error.code === -32603) {
+              errorMessage += "Gas estimation failed. Please try again.";
             } else {
-              errorMessage += 'Please check your wallet balance and approve the transaction.';
+              errorMessage +=
+                "Please check your wallet balance and approve the transaction.";
             }
-            
+
             addNotification(errorMessage);
-            
+
             // Disable auto-renew on failure
             await updateDoc(doc.ref, {
               autoRenew: false,
-              updatedAt: new Date().toISOString()
+              updatedAt: new Date().toISOString(),
             });
           }
         }
       }
     } catch (error) {
-      console.error('Error checking renewals:', error);
+      console.error("Error checking renewals:", error);
     }
   };
 
   useEffect(() => {
     if (!contract || !web3) return;
-    
+
     // Check every 15 seconds
     const interval = setInterval(checkAndProcessRenewals, 15000);
     return () => clearInterval(interval);
@@ -116,4 +119,4 @@ function SubscriptionMonitor() {
   return null;
 }
 
-export default SubscriptionMonitor; 
+export default SubscriptionMonitor;

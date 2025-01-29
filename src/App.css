@@ -495,54 +495,60 @@ button:disabled {
 
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-  width: 100%;
-  padding: 1.5rem;
-  box-sizing: border-box;
-  margin: 0 auto;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  max-width: 900px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
 }
 
 .service-card {
-  width: 100%;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 1.5rem;
-  background: var(--card-bg, #ffffff);
-  border-radius: 12px;
+  background: white;
+  border-radius: 8px;
+  padding: 1.2rem;
   text-align: center;
-  cursor: pointer;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.dark-mode .service-card {
-  background: var(--card-bg-dark, #2a2a2a);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  aspect-ratio: 1/0.8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
 }
 
 .service-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .service-icon {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
+  font-size: 2.2rem;
   color: #007bff;
+  margin-bottom: 0.75rem;
 }
 
 .service-card h3 {
-  margin: 0.5rem 0;
-  font-size: 1.2rem;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
 }
 
 .service-card p {
-  font-size: 0.9rem;
-  color: var(--text-secondary, #666);
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  color: #666;
+  line-height: 1.4;
+  max-width: 90%;
 }
 
-.dark-mode .service-card p {
-  color: var(--text-secondary-dark, #aaa);
+.dark-mode .service-card {
+  background: #2a2a2a;
+}
+
+.dark-mode .service-card:hover {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
 }
 
 .welcome-screen {
@@ -559,154 +565,70 @@ button:disabled {
   color: var(--text-secondary);
 }
 
-/* Add responsive behavior for smaller screens */
-@media (max-width: 1200px) {
+/* Responsive breakpoints */
+@media (max-width: 1024px) {
   .services-grid {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1.5rem;
-    padding: 1.5rem;
-  }
-  
-  .service-card {
-    flex: 0 0 calc(33.33% - 2rem);
-    min-width: 220px;
-  }
-
-  .main-content {
-    padding: 1.5rem;
-    margin-top: 70px;
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 800px;
   }
 }
 
-@media (max-width: 900px) {
-  .service-card {
-    flex: 0 0 calc(50% - 1.5rem);
-  }
-
-  .create-subscription,
-  .subscription-details,
-  .subscriptions-list {
-    padding: 1rem;
-  }
-
-  .input-group {
-    flex-direction: column;
-  }
-
-  .input-group input,
-  .input-group button {
-    width: 100%;
-    margin: 0.5rem 0;
-  }
-}
-
-@media (max-width: 600px) {
-  .top-bar {
-    padding: 0.8rem 1rem;
-  }
-
-  .logo h1 {
-    font-size: 1.4rem;
-  }
-
-  .controls {
-    gap: 0.5rem;
-  }
-
-  .icon-button {
-    width: 35px;
-    height: 35px;
-    font-size: 1.2rem;
-  }
-
-  .service-card {
-    flex: 0 0 100%;
-    margin: 0.5rem 0;
-  }
-
+@media (max-width: 768px) {
   .services-grid {
-    gap: 1rem;
-    padding: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 600px;
+    gap: 0.75rem;
   }
 
-  .welcome-screen {
-    padding: 1rem;
-  }
-
-  .welcome-screen h2 {
-    font-size: 1.5rem;
-  }
-
-  .account-info {
-    font-size: 0.9rem;
-    word-break: break-all;
-    padding: 0 1rem;
-  }
-
-  .notification {
-    width: 90%;
-    margin: 0 auto 0.5rem;
-    font-size: 0.9rem;
-  }
-
-  .subscription-card {
-    padding: 1rem;
-  }
-
-  .subscription-card h3 {
-    font-size: 1.1rem;
-  }
-
-  .subscription-card p {
-    font-size: 0.9rem;
-  }
-
-  .main-content {
-    margin-top: 60px;
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 400px) {
-  .top-bar {
-    grid-template-columns: auto 1fr auto; /* Adjust for very small screens */
-    gap: 0.5rem;
-    padding: 0.6rem;
-  }
-
-  .logo {
-    position: static;
-    transform: none;
-    margin-bottom: 0.5rem;
-  }
-
-  .controls {
-    position: static;
-    width: auto;
-    justify-content: center;
-    padding-right: 0;
-    margin: 0.5rem 0;
-  }
-
-  .main-content {
-    margin-top: 80px;
+  .service-card {
+    padding: 0.75rem;
   }
 
   .service-icon {
     font-size: 2rem;
   }
+  
+  .service-card p {
+    font-size: 0.9rem;
+  }
+}
 
-  .create-subscription h3,
-  .subscription-details h3,
-  .subscriptions-list h3 {
-    font-size: 1.2rem;
+@media (max-width: 480px) {
+  .services-grid {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 0 0.5rem;
+    gap: 0.5rem;
   }
 
-  input,
-  button {
-    font-size: 0.9rem;
-    padding: 8px;
+  .service-card {
+    padding: 0.5rem;
+    aspect-ratio: 1/0.9;
+  }
+
+  .service-icon {
+    font-size: 1.8rem;
+  }
+  
+  .service-card h3 {
+    font-size: 1rem;
+  }
+  
+  .service-card p {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .services-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .service-card {
+    aspect-ratio: 1/1;
+  }
+
+  .service-card p {
+    display: none;
   }
 }
 
