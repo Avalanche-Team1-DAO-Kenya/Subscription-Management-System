@@ -9,7 +9,6 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 import AppContext from "../context/AppContext";
-import { ethers } from "ethers";
 
 function SubscriptionMonitor() {
   const { account, contract, addNotification, web3 } = useContext(AppContext);
@@ -21,10 +20,11 @@ function SubscriptionMonitor() {
     }
 
     console.log("Contract state:", contract);
-    if (contract && contract.subscribe) {
-      console.log("Subscribe method exists on contract.");
+    if (contract.methods && contract.methods.createSubscription) {
+      console.log("CreateSubscription method exists on contract.");
     } else {
-      console.error("Subscribe method is missing on contract.");
+      console.error("CreateSubscription method is missing on contract.");
+      return;
     }
 
     try {
@@ -39,8 +39,8 @@ function SubscriptionMonitor() {
       const querySnapshot = await getDocs(q);
       const now = Math.floor(Date.now() / 1000);
 
-      for (const doc of querySnapshot.docs) {
-        const subscription = doc.data();
+      for (const docRef of querySnapshot.docs) {
+        const subscription = docRef.data();
 
         // Check if subscription is near expiration (within 30 seconds)
         if (subscription.endTime - now <= 30 && subscription.endTime > now) {
@@ -48,70 +48,51 @@ function SubscriptionMonitor() {
             console.log("Processing renewal for subscription:", subscription);
 
             // Convert price to wei
-            const priceInWei = ethers.parseEther(subscription.price.toString());
-
-            // Estimate gas first
-            const gasEstimate = await contract.processPayment.estimateGas(
-              subscription.id,
-              {
-                from: account,
-                value: priceInWei.toString(),
-              }
-            );
-
-            // Create the transaction with estimated gas
-            const tx = await contract.processPayment(subscription.id, {
+            const priceInWei = web3.utils.toWei(subscription.price.toString(), 'ether');
+            
+            // Estimate gas
+            const gasEstimate = await contract.methods.createSubscription(
+              priceInWei,
+              subscription.duration
+            ).estimateGas({
               from: account,
-              value: priceInWei.toString(),
-              gasLimit: Math.ceil(gasEstimate * 1.2), // Add 20% buffer for safety
+              value: priceInWei
+            });
+
+            // Send transaction
+            const tx = await contract.methods.createSubscription(
+              priceInWei,
+              subscription.duration
+            ).send({
+              from: account,
+              value: priceInWei,
+              gas: Math.ceil(gasEstimate * 1.2) // Add 20% buffer
             });
 
             console.log("Transaction sent:", tx);
 
-            // Update subscription in Firestore after successful payment
-            const newEndTime = now + Number(subscription.duration);
-            await updateDoc(doc.ref, {
-              startTime: now,
-              endTime: newEndTime,
-              updatedAt: new Date().toISOString(),
+            // Update subscription in Firestore
+            await updateDoc(doc(db, "userSubscriptions", docRef.id), {
               lastRenewalTime: now,
-              transactionHash: tx.hash,
-              status: "active",
+              endTime: now + subscription.duration,
+              transactionHash: tx.transactionHash
             });
 
-            addNotification("Subscription auto-renewed successfully!");
+            addNotification("Subscription renewed successfully!");
           } catch (error) {
-            console.error("Auto-renewal failed:", error);
-
-            let errorMessage = "Auto-renewal failed. ";
-            if (error.code === 4001) {
-              errorMessage += "Transaction was rejected.";
-            } else if (error.code === -32603) {
-              errorMessage += "Gas estimation failed. Please try again.";
-            } else {
-              errorMessage +=
-                "Please check your wallet balance and approve the transaction.";
-            }
-
-            addNotification(errorMessage);
-
-            // Disable auto-renew on failure
-            await updateDoc(doc.ref, {
-              autoRenew: false,
-              updatedAt: new Date().toISOString(),
-            });
+            console.error("Error processing renewal:", error);
+            addNotification("Failed to renew subscription: " + error.message);
           }
         }
       }
     } catch (error) {
       console.error("Error checking renewals:", error);
+      addNotification("Error checking subscription renewals");
     }
   };
 
   useEffect(() => {
-    if (!contract || !web3) return;
-
-    // Check every 15 seconds
+    // Check for renewals every 15 seconds
     const interval = setInterval(checkAndProcessRenewals, 15000);
     return () => clearInterval(interval);
   }, [account, contract, web3]);

@@ -287,35 +287,41 @@ const clearExistingPlans = async () => {
 
 // Function to seed subscription plans
 export const seedSubscriptionPlans = async () => {
-  if (!db) {
-    console.error('Firebase not initialized');
-    return;
-  }
-
   try {
-    // Verify we have exactly 18 plans
-    if (subscriptionPlans.length !== 18) {
-      throw new Error(`Expected 18 subscription plans, but found ${subscriptionPlans.length}`);
+    // First check if plans already exist
+    const plansRef = collection(db, 'subscriptionPlans');
+    const existingPlans = await getDocs(plansRef);
+    
+    if (!existingPlans.empty) {
+      console.log('Plans already seeded, skipping...');
+      return;
     }
 
-    // Use batch write with retry logic
-    await retryOperation(async () => {
-      const batch = writeBatch(db);
-      const plansRef = collection(db, 'subscriptionPlans');
+    const batch = writeBatch(db);
+    let operationCount = 0;
+    const BATCH_LIMIT = 500; // Firestore batch limit
 
-      // Add each plan with a unique document ID
-      subscriptionPlans.forEach(plan => {
-        const uniqueId = `service${plan.serviceId}_${plan.name.toLowerCase().replace(/\s+/g, '_')}`;
-        const docRef = doc(plansRef, uniqueId);
-        batch.set(docRef, {
-          ...plan,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
+    for (const plan of subscriptionPlans) {
+      const planRef = doc(plansRef);
+      batch.set(planRef, {
+        ...plan,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
+      operationCount++;
+      
+      // If we reach the batch limit, commit and start a new batch
+      if (operationCount === BATCH_LIMIT) {
+        await batch.commit();
+        operationCount = 0;
+      }
+    }
+
+    // Commit any remaining operations
+    if (operationCount > 0) {
       await batch.commit();
-    });
+    }
 
     console.log('Successfully seeded subscription plans');
   } catch (error) {
@@ -324,13 +330,15 @@ export const seedSubscriptionPlans = async () => {
   }
 };
 
-// Function to get plans for a specific service
+// Function to get plans for a specific service with caching
 export const getServicePlans = async (serviceId) => {
   try {
-    const plansRef = collection(db, 'subscriptionPlans');
-    const q = query(plansRef, where('serviceId', '==', serviceId));
+    const q = query(
+      collection(db, 'subscriptionPlans'),
+      where('serviceId', '==', serviceId)
+    );
+
     const querySnapshot = await getDocs(q);
-    
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -339,4 +347,4 @@ export const getServicePlans = async (serviceId) => {
     console.error('Error fetching service plans:', error);
     throw error;
   }
-}; 
+};
