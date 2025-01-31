@@ -21,6 +21,12 @@ function SubscriptionsList({ selectedService }) {
   const fetchSubscriptions = async (force = false) => {
     if (!account || !selectedService) return;
 
+    // If not forcing refresh and we have cached data, use it
+    if (!force && subscriptions.length > 0 && 
+        subscriptions[0]?.serviceId === selectedService.id) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Create query to get user's subscriptions for the selected service
